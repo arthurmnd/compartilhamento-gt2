@@ -192,3 +192,13 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Arquivos específicos do projeto
+misc/*
+log/*
+!in/.gitkeep
+!out/.gitkeep
+!log/.gitkeep
+config.json
+importacao_tcepb.py
+job.sh
