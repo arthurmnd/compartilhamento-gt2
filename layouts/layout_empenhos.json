@@ -1,0 +1,44 @@
+{
+    "type": "array",
+    "items": 
+      {
+      "type": "object",
+      "properties": {
+        "data_empenho": { "type": "string", "format": "date" },
+        "numero_empenho": { "type": "string", "maxLength": 22 },
+        "tipo_credor": { "type": "integer", "enum": [1,2,3,4] },
+        "nome_credor": { "type": "string", "maxLength": 500 },
+        "cpf_cnpj_credor": { "type": "string", "pattern": "^(.{11}|.{14})$" },
+        "cpf_ordenador_despesa": { "type": "string", "pattern": "^\\d{11}$" },
+        "codigo_ibge_municipio": { "type": "string", "pattern": "^\\d{7}$" },
+        "cnpj_ug": { "type": "string", "pattern": "\\d{14}" },
+        "codigo_ug": { "type": "string", "maxLength": 10 },
+        "descricao_ug": { "type": "string", "maxLength": 500 },
+        "codigo_uo": { "type": "string", "pattern": "\\d{4}" },
+        "descricao_uo": { "type": "string", "maxLength": 500 },
+        "sigla_uf": { "type": "string", "pattern": "\\w{2}" },
+        "sigla_tc": { "type": "string", "maxLength": 6 },
+        "esfera": { "type": "string", "enum": ["F", "E", "M"] },
+        "codigo_classificacao_funcional": { "type": "string", "pattern": "\\d{5}" },
+        "codigo_classificacao_natureza": { "type": "string", "pattern": "\\d{6}"},
+        "codigo_subelemento_despesa": { "type": "string", "pattern": "\\d{2}" },
+        "descricao_subelemento_despesa": { "type": "string", "maxLength": 500 },
+        "codigo_fonte_recursos": { "type": "string", "pattern": "\\d{3}" },
+        "codigo_co": { "type": "string", "pattern": "\\d{4}" },
+        "codigo_programa": { "type": "string", "maxLength": 14 },
+        "descricao_programa": { "type": "string", "maxLength": 500 },
+        "codigo_acao": { "type": "string", "maxLength": 14 },
+        "descricao_acao": { "type": "string", "maxLength": 500 },
+        "historico": { "type": "string", "maxLength": 500 },
+        "vl_empenhado": { "type": "number", "minimum": 0, "maximum": 999999999999.99},
+        "vl_liquidado": { "type": "number", "minimum": 0, "maximum": 999999999999.99},
+        "vl_pago": { "type": "number", "minimum": 0, "maximum": 999999999999.99},
+        "data_extracao": { "type": "string", "format": "date" }
+      },
+      "required": [
+        "data_empenho", "numero_empenho", "tipo_credor", "cpf_cnpj_credor", "descricao_ug",
+        "sigla_uf", "sigla_tc", "esfera", "codigo_classificacao_funcional", "codigo_classificacao_natureza",
+        "codigo_fonte_recursos", "historico", "vl_empenhado", "data_extracao"
+      ]
+    }
+}

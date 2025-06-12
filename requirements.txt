@@ -1,0 +1,5 @@
+pandas
+jsonschema
+sqlalchemy
+paramiko
+pyodbc

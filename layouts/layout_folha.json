@@ -1,0 +1,22 @@
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "cpf": { "type": "string", "pattern": "^\\d{11}$" },
+      "nome_servidor": { "type": "string", "maxLength": 200 },
+      "matricula": { "type": "string", "maxLength": 56 },
+      "data_admissao": { "type": "string", "format": "date" },
+      "ente": { "type": "string", "maxLength": 255 },
+      "esfera": { "type": "integer", "enum": [1, 2] },
+      "orgao": { "type": "string", "maxLength": 400 },
+      "lotacao": { "type": "string", "maxLength": 400 },
+      "tipo_vinculo": { "type": "string", "maxLength": 255 },
+      "vinculo": { "type": "string", "maxLength": 300 },
+      "competencia": { "type": "string", "pattern": "^(0[1-9]|1[0-2])[0-9]{4}$" },
+      "jornada": { "type": "string", "maxLength": 20 },
+      "remuneracao": { "type": "number", "minimum": 0, "maximum": 999999999.99 }
+    },
+    "required": ["cpf", "nome_servidor", "ente", "esfera", "competencia"]
+  }
+}

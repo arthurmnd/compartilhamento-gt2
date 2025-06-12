@@ -1,0 +1,35 @@
+SELECT
+    [data_empenho],
+    [numero_empenho],
+    [tipo_credor],
+    [nome_credor],
+    [cpf_cnpj_credor],
+    [cpf_ordenador_despesa],
+    [codigo_ibge_municipio],
+    [cnpj_ug],
+    [codigo_ug],
+    [descricao_ug],
+    [codigo_uo],
+    [descricao_uo],
+    [sigla_uf],
+    [sigla_tc],
+    [esfera],
+    [codigo_classificacao_funcional],
+    [codigo_classificacao_natureza],
+    [codigo_subelemento_despesa],
+    [descricao_subelemento_despesa],
+    [codigo_fonte_recursos],
+    [codigo_co],
+    [codigo_programa],
+    [descricao_programa],
+    [codigo_acao],
+    [descricao_acao],
+    [historico],
+    [vl_empenhado],
+    [vl_liquidado],
+    [vl_pago],
+    [data_extracao]
+FROM
+    [infocontas].[vw_TCEPE_Empenhos]
+WHERE
+    exercicio = $ano
