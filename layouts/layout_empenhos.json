@@ -30,7 +30,7 @@
         "codigo_acao": { "type": "string", "maxLength": 14 },
         "descricao_acao": { "type": "string", "maxLength": 500 },
         "historico": { "type": "string", "maxLength": 500 },
-        "vl_empenhado": { "type": "number", "minimum": 0, "maximum": 999999999999.99},
+        "vl_empenhado": { "type": "number", "minimum": 0.01, "maximum": 999999999999.99},
         "vl_liquidado": { "type": "number", "minimum": 0, "maximum": 999999999999.99},
         "vl_pago": { "type": "number", "minimum": 0, "maximum": 999999999999.99},
         "data_extracao": { "type": "string", "format": "date" }
@@ -38,7 +38,7 @@
       "required": [
         "data_empenho", "numero_empenho", "tipo_credor", "cpf_cnpj_credor", "descricao_ug",
         "sigla_uf", "sigla_tc", "esfera", "codigo_classificacao_funcional", "codigo_classificacao_natureza",
-        "codigo_fonte_recursos", "historico", "vl_empenhado", "data_extracao"
+        "codigo_fonte_recursos", "vl_empenhado", "data_extracao"
       ]
     }
 }
