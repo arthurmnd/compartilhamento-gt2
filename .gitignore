@@ -196,6 +196,7 @@ cython_debug/
 # Arquivos específicos do projeto
 misc/*
 log/*
+out/*
 !in/.gitkeep
 !out/.gitkeep
 !log/.gitkeep

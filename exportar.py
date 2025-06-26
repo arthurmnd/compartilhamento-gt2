@@ -7,6 +7,8 @@ import os
 import sys
 import traceback
 import zipfile
+import time
+from datetime import datetime
 
 # Importações de terceiros
 import pandas as pd
@@ -47,6 +49,9 @@ class Exportador(object):
             logging.info('Inicializando conexão com o banco de dados')
             con = self.engine.connect()            
 
+            status_execucao = 0
+            resultados = {}
+
             if self.apenas_upload:
                 # Se for apenas upload, transfere todos os zips da pasta out para o SFTP, sem trazer novos dados do banco
                 arq_upload = [x for x in os.listdir('out') if '.zip' in x]
@@ -54,66 +59,101 @@ class Exportador(object):
                 # Caso contrário, faz o download e preenche a lista de arquivos a serem enviados para o SFTP
                 for e in self.exercicios:
                     for tipo in self.config['exportacao']['tipos_arquivo']:
-                        logging.info(f'Processando arquivo do tipo "{tipo}" do exercício {e}')
-                        item = self.config['exportacao'][tipo]
+                        try:
+                            tstart = time.time()
 
-                        logging.info('Carregando consulta SQL')
-                        with open(item['query'], 'r', encoding='utf-8') as f:
-                            query = f.read().replace('$ano', e)
-            
-                        # Ajustando nome de arquivo para o TC/exercício correspondente
-                        arquivo = item['arquivo'].replace('$ano', e).replace('$tc', self.tc.upper())
+                            logging.info(f'Processando arquivo do tipo "{tipo}" do exercício {e}')
+                            item = self.config['exportacao'][tipo]
 
-                        logging.info('Carregando JSON schema')
-                        schema_path = item["layout"]
-                        if not schema_path.endswith(".json") or not os.path.exists(schema_path):
-                            logging.error("JSON schema de validação ausente")
-                        else:
-                            with open(schema_path, "r", encoding="utf-8") as f:
-                                schema = json.load(f)
+                            logging.info('Carregando consulta SQL')
+                            with open(item['query'], 'r', encoding='utf-8') as f:
+                                query = f.read().replace('$ano', e)
+                
+                            # Ajustando nome de arquivo para o TC/exercício correspondente
+                            arquivo = item['arquivo'].replace('$ano', e).replace('$tc', self.tc.upper())
+                            arq = os.path.join(self.dir_destino, arquivo + '.csv')
+                        
+                            logging.info('Carregando JSON schema')
+                            schema_path = item["layout"]
+                            if not schema_path.endswith(".json") or not os.path.exists(schema_path):
+                                logging.error("JSON schema de validação ausente")
+                            else:
+                                with open(schema_path, "r", encoding="utf-8") as f:
+                                    schema = json.load(f)
 
-                        logging.info(f'Carregando dataframe a partir de consulta "{query}"')
-                        query = sa.text(query)        
-                        df = pd.read_sql_query(sql=query,con=con, chunksize=100000)
-                                                                      
-                        logging.info(f'Exportando dados em CSV para arquivo "{arquivo}.zip"')
-                        arq = os.path.join(self.dir_destino, arquivo + '.csv')
-                        incluir_header = item['header']
+                            logging.info(f'Obtendo dados do banco e exportando para {arq}')
+                            query = sa.text(query)        
+                            df = pd.read_sql_query(sql=query,con=con, chunksize=100000)
+                                                                        
+                            if os.path.exists(arq):
+                                logging.info(f'Arquivo {arq} já existe, removendo para reexportação')
+                                os.remove(arq)                        
+                            
+                            incluir_header = item['header']
+                            # Iteração sobre os chunks do dataframe (particionado para limitar uso de memória)
+                            for chunk in df:
+                                # Validando chunk de acordo com schema
+                                validar_dataframe_schema(chunk, schema)
+                                # Identifica apenas as colunas de tipo string (object ou string dtype)
+                                string_cols = chunk.select_dtypes(include=["object", "string"]).columns
+                                # Substitui delimitadores e quebras de linha apenas nessas colunas
+                                chunk[string_cols] = chunk[string_cols].replace(
+                                    [item["delim"], r"[\r\n]+"], "", regex=True
+                                )
 
-                        # Iteração sobre os chunks do dataframe (particionado para limitar uso de memória)
-                        for chunk in df:
-                            # Validando chunk de acordo com schema
-                            validar_dataframe_schema(chunk, schema)
-                            # Identifica apenas as colunas de tipo string (object ou string dtype)
-                            string_cols = chunk.select_dtypes(include=["object", "string"]).columns
-                            # Substitui delimitadores e quebras de linha apenas nessas colunas
-                            chunk[string_cols] = chunk[string_cols].replace(
-                                [item["delim"], r"[\r\n]+"], "", regex=True
-                            )
+                                chunk.to_csv(arq
+                                            ,encoding='utf-8'
+                                            ,index=False
+                                            ,columns=schema['items']['properties'].keys()
+                                            ,header=incluir_header
+                                            ,sep=item['delim']
+                                            ,mode='a'
+                                            ,quoting=csv.QUOTE_NONE
+                                            ,float_format="%.2f"
+                                            ,lineterminator="\r\n")
+                                incluir_header = False
+                           
+                            if not self.apenas_validar:
+                                self.compactar(arq)
+                                arq_upload.append(arquivo + '.zip')
+                            
+                            # Registro do tempo e sucesso da execução
+                            tend = time.time()
+                            t = round(tend - tstart, 2)
+                            resultados[arquivo] = (t, '✅')
 
-                            chunk.to_csv(arq
-                                        ,encoding='utf-8'
-                                        ,index=False
-                                        ,header=incluir_header
-                                        ,sep=item['delim']
-                                        ,mode='a'
-                                        ,quoting=csv.QUOTE_NONE
-                                        ,float_format="%.2f"
-                                        ,lineterminator="\r\n")
-                            incluir_header = False
+                            logging.info(f'{arquivo}.zip exportado')
 
-                        logging.info(f'{arquivo}.zip exportado')
-                        if not self.apenas_validar:
-                            self.compactar(arq)
-                            arq_upload.append(arquivo + '.zip')
+                        except Exception as e:
+                            # Registro do erro e tempo de execução
+                            tend = time.time()
+                            t = round(tend - tstart, 2)
+                            resultados[arquivo] = (t, '❌')
+                            logging.error(f'Erro ao processar arquivo {arquivo}: {str(e)}')
             
             if not self.apenas_validar:
                 print(arq_upload)
                 self.enviar_arquivos(arq_upload)
-            logging.info("Fim de programa")
+            
         except Exception as e:
+            status_execucao = 1
             logging.error('Erro ao executar rotina: {}'.format(str(e)))
-            sys.exit()
+            
+        finally:
+            # Registro do fim do processamento no log:
+            tabela = "\n\nResumo do processamento:\n"
+            tabela += f"{'Arquivo':<20} {'Tempo (s)':<12} {'Status'}\n"
+            tabela += '-' * 40 + '\n'
+            for arquivo, (tempo, status) in resultados.items():
+                tabela += f"{arquivo:<20} {tempo:<12} {status}\n"
+            logging.info(tabela)
+
+            # Fecha conexão com o banco de dados
+            con.close()
+
+            logging.info("Fim de programa")
+            # Sai com status de sucesso (0) ou erro (1)
+            sys.exit(status_execucao)
 
     def compactar(self, arquivo):
         logging.info('Compactando arquivo')

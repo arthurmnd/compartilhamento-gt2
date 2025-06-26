@@ -2,6 +2,7 @@
   "type": "array",
   "items": {
     "type": "object",
+    "additionalProperties": false,
     "properties": {
       "cpf": { "type": "string", "pattern": "^\\d{11}$" },
       "nome_servidor": { "type": "string", "maxLength": 200 },

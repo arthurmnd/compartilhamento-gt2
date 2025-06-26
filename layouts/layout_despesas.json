@@ -2,6 +2,7 @@
   "type": "array",
   "items": {
     "type": "object",
+    "additionalProperties": false,
     "properties": {
       "tp_credor": { "type": "integer", "enum": [1, 2, 3] },
       "cpf_cnpj": { "type": "string", "pattern": "^\\.{14}$" },
