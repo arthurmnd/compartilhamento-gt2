@@ -1,8 +1,5 @@
 {
   "tc_origem":"tce_pe",
-  "bd_url": "mssql+pyodbc://usr:pwd@host/BD?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes",
-  "bd_schema": "infocontas",
-  "bd_tabela_controle": "ControleImportacao",
   "sftp": {
     "host": "arquivos-gi.tcepb.tc.br",
     "port": 50123,
@@ -11,110 +8,76 @@
     "dir": "./"
   },
   "exportacao":{
-    "tipos_arquivo": ["empenhos", "folha"],
-    "empenhos":{  
-      "delim":"¬",    
-      "header":true,
-      "query": "./sql/empenhos.sql",
-      "arquivo": "EMPENHOS_$tc_$ano",
-      "layout": "./layouts/layout_empenhos.json"
-    },
-    "folha": {
-      "delim":"|",
-      "header":false,
-      "query": "./sql/folha.sql",
-      "arquivo": "FOLHA_$tc_$ano",
-      "layout": "./layouts/layout_folha.json"
-      },
-    "despesas": {
-      "delim":"|",
-      "header":false,
-      "query": "./sql/despesas.sql",
-      "arquivo": "DESPESAS_$tc_$ano",
-      "layout": "./layouts/layout_despesas.json"
-    }   
+    "bd_url": "mssql+pyodbc://usr:pwd@host/BD?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes",
+    "bd_schema": "infocontas",
+    "tipos_arquivo": ["empenhos", "folha"]
   },
-  "importacao": {
-    "dir": "/dados",
-    "tcs": ["tce_pe"],
-    "tipos_arquivo": ["folha", "empenhos"],
-    "empenhos": {
-      "delim":"¬",
-      "header":true,
-      "tabela": "Empenhos",
-      "layout": {
-        "data_empenho": "datetime64[ns]",
-        "numero_empenho": "string",
-        "tipo_credor": "string",
-        "nome_credor": "string",
-        "cpf_cnpj_credor": "string",
-        "cpf_ordenador_despesa": "string",
-        "codigo_ibge_municipio": "string",
-        "cnpj_ug": "string",
-        "codigo_ug": "string",
-        "descricao_ug": "string",
-        "codigo_uo": "string",
-        "descricao_uo": "string",
-        "sigla_uf": "string",
-        "sigla_tc": "string",
-        "esfera": "string",
-        "codigo_classificacao_funcional": "string",
-        "codigo_classificacao_despesa_orc": "string",
-        "codigo_subelemento_despesa": "string",
-        "descricao_subelemento_despesa": "string",
-        "cod_fonte_recursos": "string",
-        "cd_programa": "string",
-        "descricao_programa": "string",
-        "cd_acao": "string",
-        "descricao_acao": "string",
-        "historico": "string",
-        "vl_Empenhado": "float64",
-        "vl_liquidado": "float64",
-        "vl_pago": "float64",
-        "data_extracao": "datetime64[ns]"
-      }
-    },
-    "folha": {
-      "delim":"|",
-      "header":false,
-      "tabela": "Folha",
-      "layout": {
-              "CPF": "string",
-              "NOME_SERVIDOR": "string",
-              "MATRICULA": "string",
-              "ADMISSAO": "datetime64[ns]",
-              "ENTE": "string",
-              "ESFERA": "string",
-              "ORGAO": "string",
-              "LOTACAO": "string",
-              "TIPO_VINCULO": "string",
-              "CARGO": "string",
-              "COMPETENCIA": "string",
-              "JORNADA": "string",
-              "REMUNERACAO": "float64",
-              "EXERCICIO": "Int64"
-            }
-    },
-    "despesas": {
-      "delim":"|",
-      "header":false,
-      "tabela": "Despesas",
-      "layout": {
-                "TP_PESSOA": "string",
-                "CPF_CNPJ": "string",
-                "UF": "string",
-                "ESFERA": "string",
-                "ENTE": "string",
-                "CNPJ_UG": "string",
-                "UG": "string",
-                "COD_IBGE_MUNICIPIO": "string",
-                "EXERCICIO": "Int64",
-                "EMPENHADO": "float64",
-                "LIQUIDADO": "float64",
-                "PAGO": "float64",
-                "DT_ATUALIZACAO": "datetime64[ns]"
-              }
-    }
+  "importacao":{
+    "bd_url": "mssql+pyodbc://usr:pwd@host/BD?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes",
+    "bd_schema": "infocontas",
+    "bd_tabela_controle": "ControleImportacao",
+    "dir_ftp":"/dados",
+    "tcs": [
+        "tce_ac",
+        "tce_al",
+        "tce_ap",
+        "tce_am",
+        "tce_ba",
+        "tce_ce",
+        "tc_df",
+        "tce_es",
+        "tce_go",
+        "tce_ma",
+        "tce_mg",
+        "tce_ms",
+        "tce_mt",
+        "tce_pa",
+        "tce_pb",
+        "tce_pr",
+        "tce_pe",
+        "tce_pi",
+        "tce_rj",
+        "tce_rn",
+        "tce_ro",
+        "tce_rr",
+        "tce_rs",
+        "tce_sc",
+        "tce_sp",
+        "tce_se",
+        "tce_to",
+        "tcm_rj",
+        "tcm_sp",
+        "tcm_ba",
+        "tcm_go",
+        "tcm_pa"
+      ],
+    "tipos_arquivo": ["empenhos", "folha"]
+  },
+  "arquivos":{
+      "empenhos":{  
+        "delim":"¬",    
+        "header":true,
+        "query": "./sql/empenhos.sql",
+        "arquivo": "EMPENHOS_$tc_$ano",
+        "layout": "./layouts/layout_empenhos.json",
+        "tabela_importacao":"Empenho"
+      },
+      "folha": {
+        "delim":"|",
+        "header":false,
+        "query": "./sql/folha.sql",
+        "arquivo": "FOLHA_$tc_$ano",
+        "layout": "./layouts/layout_folha.json",
+        "tabela_importacao":"Folha"
+        },
+      "despesas": {
+        "delim":"|",
+        "header":false,
+        "query": "./sql/despesas.sql",
+        "arquivo": "DESPESAS_$tc_$ano",
+        "layout": "./layouts/layout_despesas.json",
+        "tabela_importacao":"Despesa"
+      }   
   },
   "e-mail": {}
 }

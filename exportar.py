@@ -38,7 +38,7 @@ class Exportador(object):
         util.configurar_log(self.config['e-mail'], 'exportar.py')
 
         # Inicializar conexão ao banco
-        self.engine = sa.create_engine(self.config['bd_url'])
+        self.engine = sa.create_engine(self.config['exportacao']['bd_url'])
 
         self.tc = self.config['tc_origem']
 
@@ -51,85 +51,105 @@ class Exportador(object):
 
             status_execucao = 0
             resultados = {}
-
-            if self.apenas_upload:
+            """
+            
                 # Se for apenas upload, transfere todos os zips da pasta out para o SFTP, sem trazer novos dados do banco
                 arq_upload = [x for x in os.listdir('out') if '.zip' in x]
             else:
-                # Caso contrário, faz o download e preenche a lista de arquivos a serem enviados para o SFTP
-                for e in self.exercicios:
-                    for tipo in self.config['exportacao']['tipos_arquivo']:
-                        try:
-                            tstart = time.time()
+            """
+            # Caso contrário, faz o download e preenche a lista de arquivos a serem enviados para o SFTP
+            for e in self.exercicios:
+                for tipo in self.config['exportacao']['tipos_arquivo']:
+                    try:
+                        tstart = time.time()
 
-                            logging.info(f'Processando arquivo do tipo "{tipo}" do exercício {e}')
-                            item = self.config['exportacao'][tipo]
+                        logging.info(f'Processando arquivo do tipo "{tipo}" do exercício {e}')
+                        item = self.config['arquivos'][tipo]
 
-                            logging.info('Carregando consulta SQL')
-                            with open(item['query'], 'r', encoding='utf-8') as f:
-                                query = f.read().replace('$ano', e)
-                
-                            # Ajustando nome de arquivo para o TC/exercício correspondente
-                            arquivo = item['arquivo'].replace('$ano', e).replace('$tc', self.tc.upper())
-                            arq = os.path.join(self.dir_destino, arquivo + '.csv')
-                        
-                            logging.info('Carregando JSON schema')
-                            schema_path = item["layout"]
-                            if not schema_path.endswith(".json") or not os.path.exists(schema_path):
-                                logging.error("JSON schema de validação ausente")
+                        logging.info('Carregando consulta SQL')
+                        with open(item['query'], 'r', encoding='utf-8') as f:
+                            query = f.read().replace('$ano', e)
+            
+                        # Ajustando nome de arquivo para o TC/exercício correspondente
+                        arquivo = item['arquivo'].replace('$ano', e).replace('$tc', self.tc.upper())
+                        arq = os.path.join(self.dir_destino, arquivo + '.csv')
+                    
+                        logging.info('Carregando JSON schema')
+                        schema_path = item["layout"]
+                        if not schema_path.endswith(".json") or not os.path.exists(schema_path):
+                            logging.error("JSON schema de validação ausente")
+                        else:
+                            with open(schema_path, "r", encoding="utf-8") as f:
+                                schema = json.load(f)
+
+                        if self.apenas_upload:
+                            logging.info('Modo apenas upload - buscando {arq} na pasta out e enviando para SFTP')
+                            if not os.path.exists(arq):
+                                logging.error(f'Arquivo {arq} não encontrado na pasta out')
                             else:
-                                with open(schema_path, "r", encoding="utf-8") as f:
-                                    schema = json.load(f)
+                                #TODO: Pensar sobre tipos
+                                df = pd.read_csv('./out/' + arq
+                                                 , sep=item['delim']
+                                                 , encoding='utf-8'
+                                                 , dtype=str
+                                                 , low_memory=False
+                                                 , quoting=csv.QUOTE_NONE
+                                                 , float_format="%.2f"
+                                                 , lineterminator="\r\n"
+                                                 , header=item['header']
+                                                 , names=schema['items']['properties'].keys()
+                                                 , chunksize=100000)
 
+                        else:
                             logging.info(f'Obtendo dados do banco e exportando para {arq}')
                             query = sa.text(query)        
                             df = pd.read_sql_query(sql=query,con=con, chunksize=100000)
-                                                                        
-                            if os.path.exists(arq):
-                                logging.info(f'Arquivo {arq} já existe, removendo para reexportação')
-                                os.remove(arq)                        
-                            
-                            incluir_header = item['header']
-                            # Iteração sobre os chunks do dataframe (particionado para limitar uso de memória)
-                            for chunk in df:
-                                # Validando chunk de acordo com schema
-                                validar_dataframe_schema(chunk, schema)
-                                # Identifica apenas as colunas de tipo string (object ou string dtype)
-                                string_cols = chunk.select_dtypes(include=["object", "string"]).columns
-                                # Substitui delimitadores e quebras de linha apenas nessas colunas
-                                chunk[string_cols] = chunk[string_cols].replace(
-                                    [item["delim"], r"[\r\n]+"], "", regex=True
-                                )
+                                                                    
+                        if os.path.exists(arq):
+                            logging.info(f'Arquivo {arq} já existe, removendo para reexportação')
+                            os.remove(arq)                        
+                        
+                        incluir_header = item['header']
+                        # Iteração sobre os chunks do dataframe (particionado para limitar uso de memória)
+                        for chunk in df:
+                            # Validando chunk de acordo com schema
+                            util.validar_dataframe_schema(chunk, schema)
+                            # Identifica apenas as colunas de tipo string (object ou string dtype)
+                            string_cols = chunk.select_dtypes(include=["object", "string"]).columns
+                            # Substitui delimitadores e quebras de linha apenas nessas colunas
+                            chunk[string_cols] = chunk[string_cols].replace(
+                                [item["delim"], r"[\r\n]+"], "", regex=True
+                            )
 
-                                chunk.to_csv(arq
-                                            ,encoding='utf-8'
-                                            ,index=False
-                                            ,columns=schema['items']['properties'].keys()
-                                            ,header=incluir_header
-                                            ,sep=item['delim']
-                                            ,mode='a'
-                                            ,quoting=csv.QUOTE_NONE
-                                            ,float_format="%.2f"
-                                            ,lineterminator="\r\n")
-                                incluir_header = False
-                           
-                            if not self.apenas_validar:
-                                self.compactar(arq)
-                                arq_upload.append(arquivo + '.zip')
-                            
-                            # Registro do tempo e sucesso da execução
-                            tend = time.time()
-                            t = round(tend - tstart, 2)
-                            resultados[arquivo] = (t, '✅')
+                            chunk.to_csv(arq
+                                        ,encoding='utf-8'
+                                        ,index=False
+                                        ,columns=schema['items']['properties'].keys()
+                                        ,header=incluir_header
+                                        ,sep=item['delim']
+                                        ,mode='a'
+                                        ,quoting=csv.QUOTE_NONE
+                                        ,float_format="%.2f"
+                                        ,lineterminator="\r\n")
+                            incluir_header = False
+                        
+                        if not self.apenas_validar:
+                            self.compactar(arq)
+                            arq_upload.append(arquivo + '.zip')
+                        
+                        # Registro do tempo e sucesso da execução
+                        tend = time.time()
+                        t = round(tend - tstart, 2)
+                        resultados[arquivo] = (t, '✅')
 
-                            logging.info(f'{arquivo}.zip exportado')
+                        logging.info(f'{arquivo}.zip exportado')
 
-                        except Exception as e:
-                            # Registro do erro e tempo de execução
-                            tend = time.time()
-                            t = round(tend - tstart, 2)
-                            resultados[arquivo] = (t, '❌')
-                            logging.error(f'Erro ao processar arquivo {arquivo}: {str(e)}')
+                    except Exception as e:
+                        # Registro do erro e tempo de execução
+                        tend = time.time()
+                        t = round(tend - tstart, 2)
+                        resultados[arquivo] = (t, '❌')
+                        logging.error(f'Erro ao processar arquivo {arquivo}: {str(e)}')
             
             if not self.apenas_validar:
                 print(arq_upload)
@@ -184,22 +204,6 @@ class Exportador(object):
         logging.info('Upload realizado - fechando conexão SFTP')
         sftp.close()
 
-def validar_dataframe_schema(df, schema):
-    """
-    Valida um DataFrame contra um schema JSON.
-    Lança erro com mensagem clara sobre a primeira regra violada.
-    """
-    records = [
-    {k: v for k, v in row.items() if v is not None}
-        for row in df.to_dict("records")
-    ]
-    try:
-        validate(instance=records, schema=schema)
-    except ValidationError as e:
-        campo = list(e.path)[-1] if e.path else "(registro)"
-        raise Exception(f"Erro de validação no campo '{campo}': {e.message}")
-
-
 def tratar_argumentos(args):
     """
     Efetua o processamento dos argumentos passados por linha de comando.
@@ -213,7 +217,7 @@ def tratar_argumentos(args):
     parser.add_argument('--exercicios', type=str, required=True, 
                         help="Uma lista de anos separada por virgula (ex. '2020,2021,2022')")
     parser.add_argument('-u', '--apenas-upload', action='store_true', 
-                        help='Faz apenas o upload de arquivos zip já gerados e armazenados na pasta out')
+                        help='Faz apenas a validação e o upload de arquivos csv já gerados e armazenados na pasta out')
                         # Argumentos de linha de comando
     parser.add_argument("-v", "--apenas-validar", action="store_true", 
                         help="Apenas valida os dataframes e exporta os arquivos localmente")

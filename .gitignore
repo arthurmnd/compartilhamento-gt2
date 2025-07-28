@@ -196,10 +196,10 @@ cython_debug/
 # Arquivos específicos do projeto
 misc/*
 log/*
+in/*
 out/*
 !in/.gitkeep
 !out/.gitkeep
 !log/.gitkeep
 config.json
-importacao_tcepb.py
 job.sh

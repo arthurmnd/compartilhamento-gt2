@@ -2,6 +2,7 @@ import os
 import logging
 import logging.handlers
 from datetime import datetime, date, timedelta, time
+from jsonschema import validate, ValidationError
 
 def configurar_log(config_email, nome_arquivo):
     """
@@ -48,6 +49,20 @@ def carregar_certificado(config_certificado):
     if config_certificado and 'arquivo' in config_certificado:
         os.environ['REQUESTS_CA_BUNDLE'] = config_certificado['arquivo']
 
+def validar_dataframe_schema(df, schema):
+    """
+    Valida um DataFrame contra um schema JSON.
+    Lança erro com mensagem clara sobre a primeira regra violada.
+    """
+    records = [
+    {k: v for k, v in row.items() if v is not None}
+        for row in df.to_dict("records")
+    ]
+    try:
+        validate(instance=records, schema=schema)
+    except ValidationError as e:
+        campo = list(e.path)[-1] if e.path else "(registro)"
+        raise Exception(f"Erro de validação no campo '{campo}': {e.message}")
 
 def tratar_datas(args):
     data_hoje = converter_data(0)
