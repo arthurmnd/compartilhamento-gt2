@@ -76,14 +76,12 @@ class Importador(object):
                 lista_arquivos_tc = [(t, self.config['arquivos'][t]['arquivo'].replace('$tc', tc)) for t in self.config['importacao']['tipos_arquivo']]
                 # Lista de exercícios, usando regex se forem passados "todos", dando match com qualquer exercício presente no ftp
                 lista_exercicios = ['\\d{4}'] if self.exercicios == 'todos' else self.exercicios
-                print(lista_exercicios)
                 # Lista final de arquivos a serem buscados no FTP, combinando parâmetros de tc, ano e tipo de arquivo
                 lista_arquivos_completos = [
                     (tipo, arquivo.replace('$ano', str(ano)) + '.zip')
                     for (tipo, arquivo) in lista_arquivos_tc
                     for ano in lista_exercicios
                 ]
-                print(lista_arquivos_completos)
                 # Conteúdo do diretório do TC no FTP
                 conteudo_dir_ftp = self.sftp.listdir('/'.join([self.config['importacao']['dir_ftp'], tc]))
                 # Lista final dos arquivos a serem importados, filtrando os que estão no diretório do TC:
@@ -119,7 +117,7 @@ class Importador(object):
             logging.info("Fim de programa")
         except Exception as e:
             logging.error('Erro ao executar importar.py: {}'.format(str(e)))
-            sys.exit()
+            sys.exit(1)
 
 
     def baixar_arquivo(self, tc, remotepath, localpath):
@@ -129,7 +127,7 @@ class Importador(object):
 
         logging.info('Verificando data de modificação do arquivo')
         registro = self.df_controle[(self.df_controle['arquivo_origem'] == csv_file)]
-        print(registro)
+        #print(registro)
         #registro = pd.read_sql_query(sa.text(f"SELECT * FROM {self.config['importacao']['bd_schema']}.vw_ControleImportacao_UltimaImportacao WHERE arquivo_origem = :arq").bindparams(arq=csv_file), con=self.engine)
         data_modificacao = datetime.fromtimestamp(self.sftp.lstat(remotepath).st_mtime)
     
@@ -167,6 +165,7 @@ class Importador(object):
     def carregar_bd(self, tc, tipo_arquivo, localpath, novo_registro, id_ult_importacao):
         arq = localpath.name
         logging.info(f'Iniciando carga de {arq} no banco de dados')
+        print(f'Carga de {arq}')
         
         # Carregando arquivo de layout para obter colunas a serem inseridas
         schema_path = self.config['arquivos'][tipo_arquivo]['layout']
@@ -181,12 +180,11 @@ class Importador(object):
             # Registro da carga vai fora da transação principal para registrar erro independentemente do rollback
             logging.info(f"Registrando carga atual - data de execução {str(novo_registro['data_importacao'])}")
             df_novo_registro = pd.DataFrame(novo_registro, index=[0])
-            df_novo_registro.to_sql(name='ControleImportacao', con=conn_registro, schema=self.config['importacao']['bd_schema'], if_exists='append', index=False)
+            df_novo_registro.to_sql(name=self.config['importacao']['bd_tabela_controle'], con=conn_registro, schema=self.config['importacao']['bd_schema'], if_exists='append', index=False)
 
             # Obtém o id que acabou de ser inserido
             result = conn_registro.execute(sa.text(f"SELECT MAX(id) FROM {self.config['importacao']['bd_schema']}.{self.config['importacao']['bd_tabela_controle']} WHERE arquivo_origem = :arq").bindparams(arq=arq))
             id_importacao_atual = result.scalar()
-            print('id_importacao_atual:', id_importacao_atual)
             conn_registro.commit()
         
         try:
@@ -196,7 +194,6 @@ class Importador(object):
                     logging.info('Removendo registros de cargas anteriores')
                     del_ult_importacao = sa.text(f"DELETE FROM [{self.config['importacao']['bd_schema']}].{self.config['arquivos'][tipo_arquivo]['tabela_importacao']} WHERE [id_importacao] = :id_importacao")
                     del_ult_importacao = del_ult_importacao.bindparams(id_importacao=int(id_ult_importacao))
-                    print(del_ult_importacao)
                     conn_insercao.execute(del_ult_importacao)            
                 
                 df = pd.read_csv(
@@ -222,14 +219,14 @@ class Importador(object):
                     chunk['id_importacao'] = id_importacao_atual
                     
                     # Debug de right truncation:
-                    for col in chunk.select_dtypes(include=['object', 'string']):
-                        max_len = chunk[col].astype(str).str.len().max()
-                        print(f"Coluna: {col:30} | Tamanho máximo: {max_len}")
+                    #for col in chunk.select_dtypes(include=['object', 'string']):
+                    #    max_len = chunk[col].astype(str).str.len().max()
+                    #    print(f"Coluna: {col:30} | Tamanho máximo: {max_len}")
                     
                     chunk.to_sql(self.config['arquivos'][tipo_arquivo]['tabela_importacao'],schema=self.config['importacao']['bd_schema'],con=conn_insercao,index=False,if_exists='append')
                     n+=1
 
-                query_update = sa.text(f"UPDATE {self.config['importacao']['bd_schema']}.ControleImportacao SET flag_importacao = :flag WHERE id = :id").bindparams(flag=1,id=id_importacao_atual)
+                query_update = sa.text(f"UPDATE {self.config['importacao']['bd_schema']}.{self.config['importacao']['bd_tabela_controle']} SET flag_importacao = :flag WHERE id = :id").bindparams(flag=1,id=id_importacao_atual)
                 conn_insercao.execute(query_update)  
                 conn_insercao.commit()
                 logging.info('Arquivo importado com sucesso')
@@ -300,9 +297,9 @@ def run():
     try:
         main(sys.argv[1:])
     except Exception as e:
-        #logging.error('Erro ao executar transf_especiais_api.py: {}'.format(str(e)))
+        #logging.error('Erro ao executar importar.py: {}'.format(str(e)))
         traceback.print_exc(file=sys.stdout)
-        sys.exit()
+        sys.exit(1)
 
 if __name__ == "__main__":
     run()

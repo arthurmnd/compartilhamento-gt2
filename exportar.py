@@ -245,8 +245,9 @@ def run():
     try:
         main(sys.argv[1:])
     except Exception as e:
+        #logging.error('Erro ao executar exportar.py: {}'.format(str(e)))
         traceback.print_exc(file=sys.stdout)
-        sys.exit()
+        sys.exit(1)
 
 if __name__ == "__main__":
     run()
